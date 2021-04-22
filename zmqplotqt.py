@@ -13,10 +13,10 @@ import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
 import numpy as np
 
-DEVICE_IP = '192.168.0.204'
-OUT_PORT = '9902 9902'
+DEVICE_IP = '10.1.28.46'
+OUT_PORT = '9902 9904 9902 9904'
 DELAY = 0.05
-CHANNEL = '1 2'
+CHANNEL = '1 1 2 2'
 SAVE = 0
 FORMAT = '4096h'
 #==============================================================================
@@ -81,6 +81,8 @@ for i in range(len(args.port)):
     sock[i] = context.socket(zmq.SUB)
     sock[i].setsockopt(zmq.SUBSCRIBE, "".encode('utf-8'))
     sock[i].setsockopt(zmq.CONFLATE,1)
+    #sock[i].setsockopt(zmq.RCVTIMEO,0)
+    #sock[i].setsockopt(zmq.LINGER,0)
     if len(args.ip) != 1:
         sock[i].connect("tcp://"+args.ip[i]+":"+str(args.port[i]))
     else :
@@ -101,7 +103,10 @@ for i in range(len(args.channel)):
 
 def valrcv(e):
     global ee, value, datas, datasi
-    value = struct.unpack(args.Format.encode('utf-8'), sock[e].recv())
+    recv_to_crop = sock[e].recv()
+    #print('r', len(recv_to_crop))
+    value = struct.unpack(args.Format.encode('utf-8'), recv_to_crop)
+    #value = struct.unpack(args.Format.encode('utf-8'), recv_to_crop[2:])
     data[e][ptr1] = sum(value[args.channel[e]-1::2])/len(value[args.channel[e]-1::2])
     if int(args.save) == 1:
         datas[e] = sum(value[args.channel[e]-1::2])/len(value[args.channel[e]-1::2])
@@ -146,9 +151,6 @@ def update1():
     for i in range(len(args.channel)):
         curve[i].setData(ttf[:ptr1], data[i][:ptr1], pen=pg.mkPen(6+3*i, width=1))
 
-# update all plots
-#def update():
-#    update1()
 timer = pg.QtCore.QTimer()
 timer.timeout.connect(update1)
 timer.start(dt)
