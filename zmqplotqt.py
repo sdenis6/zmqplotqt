@@ -1,13 +1,12 @@
 #!/usr/bin/env python 
 
 """
-Modified on Wednseday July 11 08:00:00 2019
+Modified on May 04 2021
 by Severine DENIS
-This script is used to live plot the zmq flux sent by a redpitaya
+This script is used to live plot the zmq stream sent by a redpitaya
 """
 
 import zmq, time, numpy, struct, sys, argparse
-#import matplotlib.pyplot as plt
 
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
@@ -19,6 +18,8 @@ DELAY = 0.05
 CHANNEL = '1 1 2 2'
 SAVE = 0
 FORMAT = '4096h'
+HEADERS = ''
+FOOTER = ''
 #==============================================================================
 def parse():
     """
@@ -46,6 +47,12 @@ def parse():
     parser.add_argument('-fo', action='store', dest='Format', \
                         default=FORMAT,\
                         help='Data format in zmq protocol. (default '+str(FORMAT)+')')
+    parser.add_argument('-he', action='store', dest='Headers', \
+                        default=HEADERS,\
+                        help='Headers for graphs and data save option. (default '+str(HEADERS)+')')
+    parser.add_argument('-foo', action='store', dest='Footer', \
+                        default=FOOTER,\
+                        help='Foter to place at the end of the filename. (default '+str(FOOTER)+')')
     args = parser.parse_args()
     return args
 
@@ -66,15 +73,28 @@ datas = [0]*len(args.channel)
 tmp = [0]*len(args.channel)
 ttf = np.empty(100)
 ptr1 = 0
-t0=time.time()
-tf=0
-ee=0
+t0 = time.time()
+tf = 0
+ee = 0
 
-dt=float(args.delay)*1000
+dt = float(args.delay)*1000
 
-filename = time.strftime("%Y%m%d-%H%M%S", time.gmtime(t0)) + '-RP.dat'
+if args.Footer != '':
+    args.Footer = '_' + args.Footer
+filename = time.strftime("%Y%m%d-%H%M%S", time.gmtime(t0)) + '-RP' + args.Footer + '.dat'
 if int(args.save) == 1:
     data_file = open(filename, 'wr', 0)
+    if args.Headers == '':
+        def_headers = ''
+	for i in range(len(args.port)):
+            if len(args.ip) != 1:
+                def_headers = def_headers + str(args.ip[i]) + ':' + str(args.port[i]) + '/' + str(args.channel[i])
+            else :
+                def_headers = def_headers + str(args.ip[0]) + ':' + str(args.port[i]) + '/' + str(args.channel[i])
+            def_headers = def_headers + '\t'
+        data_file.write('epoch_time\tYYYY-MM-DD\thh:mm:ss.ss\t' + def_headers + '\n')
+    else:
+        data_file.write('epoch_time\tYYYY-MM-DD\thh:mm:ss.ss\t' + args.Headers.replace(' ','\t') + '\n')
 
 context = zmq.Context()
 for i in range(len(args.port)):
@@ -92,7 +112,17 @@ win = pg.GraphicsWindow()
 win.setWindowTitle('zmqplotqt.py IP:'+str(args.ip)+':'+str(args.port)+' ch'+str(args.channel)+' dt='+str(args.delay)+'s')
 
 for i in range(len(args.channel)):
-    p[i] = win.addPlot()
+
+    if args.Headers == '':
+        if len(args.ip) != 1:
+            def_headers = str(args.ip[i]) + ':' + str(args.port[i]) + '/' + str(args.channel[i])
+        else :
+            def_headers = str(args.ip[0]) + ':' + str(args.port[i]) + '/' + str(args.channel[i])
+        p[i] = win.addPlot(title=def_headers)
+    else:
+        p[i] = win.addPlot(title=args.Headers.split()[i])
+
+    #p[i] = win.addPlot(title=)
     win.nextRow()
     p[i].setDownsampling(mode='peak')
     p[i].setClipToView(True)
@@ -131,10 +161,13 @@ def update1():
 
     if int(args.save) == 1:
         epoch = time.time()
-        mjd = epoch / 86400.0 + 40587
-        string = "%f\t%f\t%s\n" % (epoch, mjd, datasi)
+        #mjd = epoch / 86400.0 + 40587
+        date = time.strftime('%Y-%m-%d\t%H:%M:%S.' + str(epoch).split('.')[1] , time.localtime(epoch))
+        #string = "%f\t%f\t%s\n" % (epoch, mjd, datasi)
+        string = "%f\t%s\t%s\n" % (epoch, date, datasi)
         data_file.write(string)
-        print("%f\t%f\t%s" % (epoch, mjd, datasi))
+        #print("%f\t%f\t%s" % (epoch, mjd, datasi))
+        print("%f\t%s\t%s" % (epoch, date, datasi))
 
     ttf[ptr1] = time.time()-t0
     ptr1 += 1
