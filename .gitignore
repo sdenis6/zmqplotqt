@@ -3,3 +3,6 @@ zmqplotqtCOURT.py
 zmqplotqtnomean.py
 zmqplotqt_noparser.py
 zmqplotqt.withThreads.py
+zmqstreamqt_spectrum_gitExample.py
+zmqstreamqt_spectrum.py
+zmqstreamqt.py
