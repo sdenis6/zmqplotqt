@@ -16,6 +16,7 @@ DEVICE_IP = '10.1.28.46'
 OUT_PORT = '9902 9904 9902 9904'
 DELAY = 0.05
 CHANNEL = '1 1 2 2'
+NB_CHAN = '2'
 SAVE = 0
 FORMAT = '4096h'
 HEADERS = ''
@@ -41,6 +42,9 @@ def parse():
     parser.add_argument('-ch', action='store', dest='channel', \
                         default=CHANNEL,\
                         help='Channels to display. (default '+str(CHANNEL)+')')
+    parser.add_argument('-nbch', action='store', dest='nb_chan', \
+                        default=NB_CHAN,\
+                        help='Nomber of interleaved channels. (default '+str(NB_CHAN)+')')
     parser.add_argument('-s', action='store', dest='save', \
                         default=SAVE,\
                         help='To export the stream to a .dat file : -s 1. The file is created in the current folder. (default '+str(SAVE)+')')
@@ -62,8 +66,9 @@ args = parse()
 
 args.port = args.port.split()
 args.channel = args.channel.split()
-args.channel = map(int,args.channel)
+args.channel = list(args.channel)
 args.ip = args.ip.split()
+args.nb_chan = int(args.nb_chan)
 
 sock = [0]*len(args.channel)
 p = [0]*len(args.channel)
@@ -77,16 +82,16 @@ t0 = time.time()
 tf = 0
 ee = 0
 
-dt = float(args.delay)*1000
+dt = int(args.delay)*1000
 
 if args.Footer != '':
     args.Footer = '_' + args.Footer
 filename = time.strftime("%Y%m%d-%H%M%S", time.gmtime(t0)) + '-RP' + args.Footer + '.dat'
 if int(args.save) == 1:
-    data_file = open(filename, 'wr', 0)
+    data_file = open(filename, 'w')
     if args.Headers == '':
         def_headers = ''
-	for i in range(len(args.port)):
+        for i in range(len(args.port)):
             if len(args.ip) != 1:
                 def_headers = def_headers + str(args.ip[i]) + ':' + str(args.port[i]) + '/' + str(args.channel[i])
             else :
@@ -137,9 +142,9 @@ def valrcv(e):
     #print('r', len(recv_to_crop))
     value = struct.unpack(args.Format.encode('utf-8'), recv_to_crop)
     #value = struct.unpack(args.Format.encode('utf-8'), recv_to_crop[2:])
-    data[e][ptr1] = sum(value[args.channel[e]-1::2])/len(value[args.channel[e]-1::2])
+    data[e][ptr1] = sum(value[int(args.channel[e])-1::args.nb_chan])/len(value[int(args.channel[e])-1::args.nb_chan])
     if int(args.save) == 1:
-        datas[e] = sum(value[args.channel[e]-1::2])/len(value[args.channel[e]-1::2])
+        datas[e] = sum(value[int(args.channel[e])-1::args.nb_chan])/len(value[int(args.channel[e])-1::args.nb_chan])
         datasi = str(datas)
         datasi = datasi.replace('+','')
         datasi = datasi.replace(',','\t')
